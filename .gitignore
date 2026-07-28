@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+artifacts/
+output/
+results/
+paper_figures/output/
+tmp/
+*.zip
