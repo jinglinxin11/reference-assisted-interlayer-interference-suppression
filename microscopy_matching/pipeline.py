@@ -18,6 +18,8 @@ from .evidence_mask import matched_only_mask, native_binary_image
 from .image_processing import Structure, build_structure, corridor_from_points, read, resize_for_analysis, write
 from .registration import (
     UnifiedMatch,
+    UnifiedSearchConfig,
+    analysis_scale_prior,
     native_affine,
     native_bbox,
     refine_candidate,
@@ -28,8 +30,15 @@ from .scale_calibration import PhysicalScaleEstimate, estimate_pixels_per_um
 
 
 DEFAULT_TARGET_SCALE_BAR_UM = 200.0
-DEFAULT_AUXILIARY_SCALE_BAR_UM = 500.0
+DEFAULT_AUXILIARY_SCALE_BAR_UM = DEFAULT_TARGET_SCALE_BAR_UM
 LOW_MARGIN = 0.025
+TARGET_REFERENCED_SEARCH = UnifiedSearchConfig(
+    physical_residual_scale_range=(0.60, 1.80),
+    physical_residual_scale_count=7,
+    include_generic_scale_fallback=False,
+    fine_scale_half_width=0.12,
+    physical_prior_weight=0.08,
+)
 
 
 @dataclass(frozen=True)
@@ -64,6 +73,35 @@ def _calibrations(images: list[np.ndarray], scale_bar_length_um: float) -> list[
         estimate_pixels_per_um(image, scale_bar_length_um=scale_bar_length_um)
         for image in images
     ]
+
+
+def _required_target_referenced_scale(
+    target_image: np.ndarray,
+    auxiliary_image: np.ndarray,
+    target: Structure,
+    auxiliary: Structure,
+    target_calibration: PhysicalScaleEstimate,
+    auxiliary_calibration: PhysicalScaleEstimate,
+) -> tuple[float, float]:
+    """Return a mandatory auxiliary-to-target scale in target coordinates."""
+
+    prior = analysis_scale_prior(
+        source_pixels_per_um=auxiliary_calibration.pixels_per_um,
+        target_pixels_per_um=target_calibration.pixels_per_um,
+        source_native_shape=auxiliary_image.shape[:2],
+        target_native_shape=target_image.shape[:2],
+        source_analysis_shape=auxiliary.image.shape[:2],
+        target_analysis_shape=target.image.shape[:2],
+    )
+    if prior is None:
+        raise RuntimeError(
+            "Target-referenced physical calibration is required; "
+            "both target and auxiliary scale bars must be detected."
+        )
+    confidence = float(min(target_calibration.confidence, auxiliary_calibration.confidence))
+    if confidence <= 0.0:
+        raise RuntimeError("Target-referenced physical calibration has zero confidence.")
+    return prior, confidence
 
 
 def _render_target_evidence(
@@ -172,8 +210,17 @@ def _pair_row(
         "coarse_angle_deg": round(match.coarse_angle_deg, 8),
         "coarse_dx": round(match.coarse_dx, 8),
         "coarse_dy": round(match.coarse_dy, 8),
-        "physical_analysis_scale_prior": None,
-        "physical_scale_score": None,
+        "physical_analysis_scale_prior": (
+            None if match.physical_scale_prior is None else round(match.physical_scale_prior, 8)
+        ),
+        "physical_analysis_scale_residual": (
+            None
+            if match.physical_scale_prior is None
+            else round(match.scale / match.physical_scale_prior, 8)
+        ),
+        "physical_scale_score": (
+            None if match.physical_scale_score is None else round(match.physical_scale_score, 8)
+        ),
         "physical_scale_available": match.physical_scale_available,
         "target_pixels_per_um": target_calibration.pixels_per_um,
         "auxiliary_pixels_per_um": auxiliary_calibration.pixels_per_um,
@@ -230,18 +277,21 @@ def run_pipeline(
     for target_index, target in enumerate(targets):
         target_matches: list[UnifiedMatch] = []
         for candidate_index, auxiliary in enumerate(auxiliaries):
-            physical_scale_available = bool(
-                target_calibrations[target_index].success
-                and auxiliary_calibrations[candidate_index].success
+            physical_scale_prior, physical_prior_confidence = _required_target_referenced_scale(
+                target_images[target_index],
+                auxiliary_images[candidate_index],
+                target,
+                auxiliary,
+                target_calibrations[target_index],
+                auxiliary_calibrations[candidate_index],
             )
-            # The established default is report-only physical calibration.
-            # Keep it out of ranking while retaining its availability flag.
             match = refine_candidate(
                 target,
                 auxiliary,
-                physical_scale_prior=None,
-                physical_prior_confidence=0.0,
-                physical_scale_available=physical_scale_available,
+                physical_scale_prior=physical_scale_prior,
+                physical_prior_confidence=physical_prior_confidence,
+                physical_scale_available=True,
+                config=TARGET_REFERENCED_SEARCH,
             )
             target_matches.append(match)
             pair_rows.append(
@@ -297,10 +347,17 @@ def run_pipeline(
             "analysis_angle_deg": round(best.angle_deg, 8),
             "analysis_dx": round(best.dx, 8),
             "analysis_dy": round(best.dy, 8),
-            "physical_scale_prior": None,
-            "physical_scale_score": None,
+            "physical_scale_prior": best.physical_scale_prior,
+            "physical_scale_score": best.physical_scale_score,
             "physical_scale_available": best.physical_scale_available,
-            "physical_scale_mode": "report-only",
+            "physical_scale_mode": "target_200um_constrained",
+            "target_scale_bar_um": target_scale_bar_um,
+            "auxiliary_scale_bar_um": auxiliary_scale_bar_um,
+            "physical_analysis_scale_residual": (
+                None
+                if best.physical_scale_prior is None
+                else round(best.scale / best.physical_scale_prior, 8)
+            ),
             "selected_native_bbox_xyxy": " ".join(str(value) for value in selected_box),
             "selected_width_um": None if selected_width_um is None else round(selected_width_um, 4),
             "selected_height_um": None if selected_height_um is None else round(selected_height_um, 4),
@@ -359,6 +416,14 @@ def minimal_results_payload(run: PipelineRun) -> dict[str, object]:
                     "dx": row["analysis_dx"],
                     "dy": row["analysis_dy"],
                 },
+                "physical_scale": {
+                    "mode": row["physical_scale_mode"],
+                    "target_scale_bar_um": row["target_scale_bar_um"],
+                    "auxiliary_scale_bar_um": row["auxiliary_scale_bar_um"],
+                    "analysis_prior": row["physical_scale_prior"],
+                    "analysis_residual": row["physical_analysis_scale_residual"],
+                    "score": row["physical_scale_score"],
+                },
                 "native_bbox_xyxy": row["selected_native_bbox_xyxy"],
                 "status_flags": row["status_flags"],
                 "presentation_file": f"presentation/{stem}.png",
@@ -366,7 +431,7 @@ def minimal_results_payload(run: PipelineRun) -> dict[str, object]:
             }
         )
     return {
-        "mode": "automatic_independent_no_batch_assignment",
+        "mode": "automatic_independent_target_200um_constrained",
         "binary_rule": "target_foreground_and_registered_auxiliary_corridor",
         "results": results,
     }

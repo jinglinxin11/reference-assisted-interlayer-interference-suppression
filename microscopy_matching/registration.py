@@ -27,6 +27,8 @@ class UnifiedSearchConfig:
     generic_scale_max: float = 1.60
     generic_scale_count: int = 7
     physical_scale_half_width: float = 0.18
+    physical_residual_scale_range: tuple[float, float] | None = None
+    physical_residual_scale_count: int = 7
     include_generic_scale_fallback: bool = True
     coarse_angles_deg: tuple[float, ...] = (-5.0, 0.0, 5.0)
     coarse_translation_offsets: tuple[float, ...] = (-32.0, 0.0, 32.0)
@@ -606,6 +608,19 @@ def _coarse_scales(
     generic = np.linspace(config.generic_scale_min, config.generic_scale_max, config.generic_scale_count)
     if physical_scale_prior is None or not np.isfinite(physical_scale_prior) or physical_scale_prior <= 0.0:
         return tuple(float(value) for value in generic)
+    if config.physical_residual_scale_range is not None:
+        residual_min, residual_max = config.physical_residual_scale_range
+        if residual_min <= 0.0 or residual_max < residual_min:
+            raise ValueError("physical_residual_scale_range must be positive and ordered.")
+        if config.physical_residual_scale_count < 2:
+            raise ValueError("physical_residual_scale_count must be at least two.")
+        physical = physical_scale_prior * np.linspace(
+            residual_min,
+            residual_max,
+            config.physical_residual_scale_count,
+        )
+        values = physical if not config.include_generic_scale_fallback else np.unique(np.concatenate([generic, physical]))
+        return tuple(float(value) for value in values if value > 0.05)
     confidence = float(np.clip(confidence, 0.0, 1.0))
     half_width = config.physical_scale_half_width * (1.15 - 0.45 * confidence)
     physical = physical_scale_prior * np.linspace(1.0 - half_width, 1.0 + half_width, 5)
