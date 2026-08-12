@@ -66,6 +66,15 @@ class PipelineRun:
     pair_rows: tuple[dict[str, object], ...]
     summary_rows: tuple[dict[str, object], ...]
     selections: tuple[SelectedMatch, ...]
+    target_paths: tuple[Path, ...] = ()
+    reference_paths: tuple[Path, ...] = ()
+    target_images: tuple[np.ndarray, ...] = ()
+    reference_images: tuple[np.ndarray, ...] = ()
+    target_structures: tuple[Structure, ...] = ()
+    reference_structures: tuple[Structure, ...] = ()
+    target_calibrations: tuple[PhysicalScaleEstimate, ...] = ()
+    reference_calibrations: tuple[PhysicalScaleEstimate, ...] = ()
+    matches: tuple[tuple[UnifiedMatch, ...], ...] = ()
 
 
 def _calibrations(images: list[np.ndarray], scale_bar_length_um: float) -> list[PhysicalScaleEstimate]:
@@ -147,15 +156,15 @@ def _render_target_evidence(
 
 def _decision_status(match: UnifiedMatch, margin: float) -> str:
     if margin < LOW_MARGIN:
-        return "review_required_low_margin"
+        return "flagged_low_margin"
     if match.coarse_boundary_hit or match.fine_boundary_hit:
-        return "review_required_boundary_hit"
+        return "flagged_boundary_hit"
     if not match.stable:
-        return "review_required_flat_registration"
+        return "flagged_flat_registration"
     if match.topology.missing_stroke_penalty > 0.35 or match.topology.endpoint_coverage < 0.65:
-        return "review_required_topology"
+        return "flagged_topology"
     if not match.physical_scale_available:
-        return "review_required_physical_scale_unavailable"
+        return "flagged_physical_scale_unavailable"
     return "automatic_candidate_unvalidated"
 
 
@@ -392,6 +401,15 @@ def run_pipeline(
         pair_rows=tuple(pair_rows),
         summary_rows=tuple(summary_rows),
         selections=tuple(selections),
+        target_paths=tuple(target_paths),
+        reference_paths=tuple(auxiliary_paths),
+        target_images=tuple(target_images),
+        reference_images=tuple(auxiliary_images),
+        target_structures=tuple(targets),
+        reference_structures=tuple(auxiliaries),
+        target_calibrations=tuple(target_calibrations),
+        reference_calibrations=tuple(auxiliary_calibrations),
+        matches=tuple(tuple(target_matches) for target_matches in matches),
     )
 
 

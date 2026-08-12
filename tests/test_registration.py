@@ -13,6 +13,7 @@ from microscopy_matching.registration import (
     refine_candidate,
     select_central_auxiliary_support,
     similarity_matrix,
+    translation_score_landscape,
 )
 
 
@@ -167,3 +168,42 @@ def test_report_only_calibration_is_not_marked_as_unavailable() -> None:
     assert result.physical_scale_available
     assert "physical_scale_report_only" in result.status_flags
     assert "physical_scale_unavailable" not in result.status_flags
+
+
+def test_translation_score_landscape_uses_selected_transform_and_validates_offsets() -> None:
+    auxiliary = _structure(_u_mask())
+    target = _structure(_u_mask())
+    config = UnifiedSearchConfig(
+        generic_scale_min=0.98,
+        generic_scale_max=1.02,
+        generic_scale_count=3,
+        coarse_angles_deg=(0.0,),
+        coarse_translation_offsets=(0.0,),
+        maximum_translation_px=8.0,
+        top_k_peaks=1,
+        fine_translation_radius_px=2.0,
+    )
+    result = refine_candidate(target, auxiliary, config=config)
+    offsets = np.asarray((-3.0, 0.0, 3.0))
+
+    landscape = translation_score_landscape(
+        target,
+        auxiliary,
+        result,
+        offsets,
+        offsets,
+        config=config,
+    )
+
+    assert landscape.shape == (3, 3)
+    assert np.all(np.isfinite(landscape))
+    assert landscape[1, 1] == pytest.approx(float(landscape.max()), abs=0.03)
+    with pytest.raises(ValueError, match="one-dimensional"):
+        translation_score_landscape(
+            target,
+            auxiliary,
+            result,
+            offsets.reshape(1, -1),
+            offsets,
+            config=config,
+        )

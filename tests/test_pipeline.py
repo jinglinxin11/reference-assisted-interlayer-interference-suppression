@@ -29,7 +29,7 @@ def test_minimal_results_payload_contains_only_final_result_references() -> None
         "selected_score": 0.5,
         "runner_up_label": "T",
         "margin": 0.1,
-        "decision_status": "review_required_topology",
+        "decision_status": "flagged_topology",
         "analysis_scale": 1.0,
         "analysis_angle_deg": 0.0,
         "analysis_dx": 1.0,
@@ -68,7 +68,7 @@ def test_minimal_results_payload_contains_only_final_result_references() -> None
             "selected_score": 0.5,
             "runner_up_label": "T",
             "margin": 0.1,
-            "decision_status": "review_required_topology",
+            "decision_status": "flagged_topology",
             "analysis_transform": {"scale": 1.0, "angle_deg": 0.0, "dx": 1.0, "dy": 2.0},
             "physical_scale": {
                 "mode": "target_200um_constrained",

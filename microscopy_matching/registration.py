@@ -581,6 +581,73 @@ def refine_candidate(
     )
 
 
+def translation_score_landscape(
+    target: Structure,
+    auxiliary: Structure,
+    match: UnifiedMatch,
+    dx_offsets: np.ndarray,
+    dy_offsets: np.ndarray,
+    *,
+    physical_prior_confidence: float = 1.0,
+    config: UnifiedSearchConfig = UnifiedSearchConfig(),
+) -> np.ndarray:
+    """Evaluate the registration objective around one selected transform.
+
+    Scale and rotation are held at the optimized values.  Each output cell is
+    the same geometry objective optimized by :func:`refine_candidate`, with
+    the supplied x/y values interpreted as offsets from the selected
+    translation.  Preparing the image fields once keeps the diagnostic
+    deterministic and substantially cheaper than rerunning registration for
+    every grid cell.
+    """
+
+    x_offsets = np.asarray(dx_offsets, dtype=np.float64)
+    y_offsets = np.asarray(dy_offsets, dtype=np.float64)
+    if x_offsets.ndim != 1 or y_offsets.ndim != 1:
+        raise ValueError("dx_offsets and dy_offsets must be one-dimensional.")
+    if not np.all(np.isfinite(x_offsets)) or not np.all(np.isfinite(y_offsets)):
+        raise ValueError("Translation offsets must be finite.")
+
+    target_soft = cv2.GaussianBlur(target.response.astype(np.float32), (0, 0), 2.2)
+    target_distance = cv2.distanceTransform((~target.mask).astype(np.uint8), cv2.DIST_L2, 3)
+    auxiliary_distance = cv2.distanceTransform((~auxiliary.mask).astype(np.uint8), cv2.DIST_L2, 3)
+    target_angle, target_coherence = orientation_fields(target_soft)
+    auxiliary_angle, _ = orientation_fields(auxiliary.skeleton.astype(np.float32))
+    source_points = _skeleton_points(auxiliary, maximum=640)
+    target_points = _skeleton_points(target, maximum=720)
+    source_angles = _bilinear_sample(auxiliary_angle, source_points)
+
+    landscape = np.empty((len(y_offsets), len(x_offsets)), dtype=np.float64)
+    for row, y_offset in enumerate(y_offsets):
+        for column, x_offset in enumerate(x_offsets):
+            values = np.asarray(
+                [
+                    log(match.scale),
+                    match.angle_deg,
+                    match.dx + float(x_offset),
+                    match.dy + float(y_offset),
+                ],
+                dtype=np.float64,
+            )
+            landscape[row, column] = _geometry_score(
+                values,
+                target,
+                auxiliary,
+                target_soft,
+                target_distance,
+                auxiliary_distance,
+                target_angle,
+                target_coherence,
+                source_points,
+                target_points,
+                source_angles,
+                match.physical_scale_prior,
+                physical_prior_confidence,
+                config,
+            ).score
+    return landscape
+
+
 def _skeleton_points(structure: Structure, maximum: int | None) -> np.ndarray:
     points = np.argwhere(structure.skeleton)[:, ::-1].astype(np.float32)
     if maximum is None or len(points) <= maximum:

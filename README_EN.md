@@ -82,11 +82,11 @@ artifacts/matching_results/
 ## 7. Decision Status
 
 - `accepted`: the margin and structural checks satisfy automatic acceptance criteria.
-- `review_required_low_margin`: the best and second-best scores are close; manual review is recommended.
-- `review_required_topology`: critical-stroke or endpoint-coverage checks require review.
+- `flagged_low_margin`: the best and second-best scores are close; manual inspection is recommended.
+- `flagged_topology`: critical-stroke or endpoint-coverage checks triggered a diagnostic flag.
 - Additional flags may report search-boundary or physical-scale audit conditions.
 
-The review status does not replace the highest-scoring label. It communicates uncertainty in an auditable form.
+The diagnostic flag does not replace the highest-scoring label. It communicates uncertainty in an auditable form.
 
 ## 8. Verified Result for the Included Inputs
 
@@ -104,5 +104,7 @@ target_04 -> Z
 - Reference filenames provide candidate labels but do not determine a target's selected result.
 - Each input directory must contain exactly four readable JPG or PNG images.
 - Verify the physical meaning of the scale bar when replacing inputs. The program does not infer the scale label through OCR.
-- This core package excludes manuscript layout, PDF, SVG, animation, perspective-stack, and yellow-label export utilities.
-
+- `python paper_figures/run_all.py` is the end-to-end reviewer entry point. It reads the four targets and four references under `data/input/`, reruns all sixteen candidate registrations, and generates eight Figure H panels, five supplementary composites, 42 supplementary panels, and reviewer-readable CSV/JSON source data from that same algorithm run.
+- Manuscript figures no longer load frozen composites or hard-coded manuscript scores. Arial is required and the run fails rather than silently substituting another font.
+- Manuscript outputs are RGB 600 dpi PNG files; no ZIP, Word, PDF, SVG, or TIFF is generated.
+- `paper_figures/generated/` is not committed to Git. Reviewers regenerate every result from the committed inputs and current algorithm, preventing stale or manually post-processed PNG files from diverging from the source code.

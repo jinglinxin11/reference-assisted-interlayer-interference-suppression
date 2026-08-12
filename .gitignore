@@ -1,10 +1,14 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.venv/
+.venv-figures/
+.venv-paper/
 .DS_Store
 artifacts/
 output/
 results/
 paper_figures/output/
+paper_figures/generated/
 tmp/
 *.zip
