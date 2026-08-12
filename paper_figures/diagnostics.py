@@ -621,7 +621,7 @@ def write_diagnostic_tables(context: PaperDiagnostics, outdir: Path) -> list[Pat
                 "full-field isotropic resampling from the native 500-um reference "
                 "calibration to target_01 analysis pixels per micrometre; the detected "
                 "native annotation is removed, candidates are placed on one common "
-                "physical canvas with background-only padding, and a 200-um display "
+                "physical canvas with edge-continuous background-only padding, and a 200-um display "
                 "annotation is added"
             ),
             "target_analysis_pixels_per_um": target_analysis_pixels_per_um(context),

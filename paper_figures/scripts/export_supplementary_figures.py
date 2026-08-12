@@ -13,6 +13,12 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
+mpl.rcParams.update({
+    "svg.fonttype": "none",
+    "pdf.fonttype": 42,
+    "savefig.dpi": 600,
+})
+
 REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
@@ -127,11 +133,23 @@ def _fit_into_box(
     box: tuple[int, int, int, int],
     *,
     background: tuple[int, int, int],
+    edge_pad: bool = False,
 ) -> Image.Image:
     x0, y0, x1, y1 = box
     target_size = (x1 - x0, y1 - y0)
     image = Image.fromarray(np.asarray(image_rgb, dtype=np.uint8), mode="RGB")
     contained = ImageOps.contain(image, target_size, Image.Resampling.LANCZOS)
+    if edge_pad:
+        left = (target_size[0] - contained.width) // 2
+        right = target_size[0] - contained.width - left
+        top = (target_size[1] - contained.height) // 2
+        bottom = target_size[1] - contained.height - top
+        padded = np.pad(
+            np.asarray(contained, dtype=np.uint8),
+            ((top, bottom), (left, right), (0, 0)),
+            mode="edge",
+        )
+        return Image.fromarray(np.ascontiguousarray(padded), mode="RGB")
     panel = Image.new("RGB", target_size, background)
     panel.paste(contained, ((target_size[0] - contained.width) // 2, (target_size[1] - contained.height) // 2))
     return panel
@@ -418,12 +436,13 @@ def metrics_panel(ax: plt.Axes, context: PaperDiagnostics, *, compact: bool = Fa
 
 def build_figure3(context: PaperDiagnostics) -> plt.Figure:
     fig = plt.figure(figsize=(COMPOSITE_SIZES[2][0] / DPI, COMPOSITE_SIZES[2][1] / DPI), dpi=DPI)
-    # Explicit axes leave protected whitespace around the colorbar and all y-axis
-    # titles.  This avoids the former overlap between panels (a) and (b).
-    ax_a = fig.add_axes((0.055, 0.245, 0.260, 0.595))
-    cax = fig.add_axes((0.326, 0.245, 0.016, 0.595))
-    ax_b = fig.add_axes((0.425, 0.200, 0.300, 0.690))
-    ax_c = fig.add_axes((0.805, 0.200, 0.175, 0.690))
+    # Reserve a full protected gutter between the contour colorbar labels and
+    # the corridor-sensitivity y label.  At final page size, glyph extents—not
+    # merely the Axes rectangles—must remain disjoint.
+    ax_a = fig.add_axes((0.050, 0.245, 0.235, 0.595))
+    cax = fig.add_axes((0.294, 0.245, 0.011, 0.595))
+    ax_b = fig.add_axes((0.445, 0.200, 0.285, 0.690))
+    ax_c = fig.add_axes((0.815, 0.200, 0.165, 0.690))
     translation_landscape_panel(ax_a, cax, context, compact=True); radius_panel(ax_b, context, compact=True); metrics_panel(ax_c, context, compact=True)
     for letter, axis in (("a", ax_a), ("b", ax_b), ("c", ax_c)):
         _figure_label(fig, letter, axis.get_position().x0 - 0.020, 0.955)
@@ -505,25 +524,28 @@ def _reference_views(
         height = max(view.shape[0] for view in views)
         width = max(view.shape[1] for view in views)
         selected = views[candidate_index]
-        if representation == "analysis":
-            background = np.asarray((12, 26, 32), dtype=np.uint8)
-        else:
-            border = np.concatenate(
-                (
-                    selected[0],
-                    selected[-1],
-                    selected[:, 0],
-                    selected[:, -1],
-                ),
-                axis=0,
-            )
-            background = np.asarray(np.median(border, axis=0), dtype=np.uint8)
-        canvas = np.empty((height, width, 3), dtype=np.uint8)
-        canvas[:] = background
         x0 = (width - selected.shape[1]) // 2
         y0 = (height - selected.shape[0]) // 2
-        canvas[y0 : y0 + selected.shape[0], x0 : x0 + selected.shape[1]] = selected
-        return canvas
+        left = x0
+        right = width - selected.shape[1] - left
+        top = y0
+        bottom = height - selected.shape[0] - top
+        if representation == "analysis":
+            canvas = np.empty((height, width, 3), dtype=np.uint8)
+            canvas[:] = np.asarray((12, 26, 32), dtype=np.uint8)
+            canvas[y0 : y0 + selected.shape[0], x0 : x0 + selected.shape[1]] = selected
+            return canvas
+
+        # The native image border contains background only.  Extend those edge
+        # pixels into the required common-canvas margin so the physical padding
+        # remains background-only but does not form a flat, false-colour band.
+        return np.ascontiguousarray(
+            np.pad(
+                selected,
+                ((top, bottom), (left, right), (0, 0)),
+                mode="edge",
+            )
+        )
 
     return (
         _annotate_target_scale_bar(
@@ -542,14 +564,17 @@ def _reference_views(
 def build_figure4(context: PaperDiagnostics, font_path: Path) -> Image.Image:
     canvas = Image.new("RGB", COMPOSITE_SIZES[3], "white"); draw = ImageDraw.Draw(canvas)
     x_boxes = ((257, 1247), (1276, 2266), (2296, 3285), (3315, 4304))
-    y_boxes = ((160, 1000), (1130, 2025))
+    # A 4:3 tile matches the authoritative standalone arrays and therefore
+    # avoids visible letterbox bands in the composite.  Edge padding remains a
+    # defensive fallback for replacement inputs with a slightly different ratio.
+    y_boxes = ((190, 932), (1115, 1857))
     title_font, label_font, caption_font = _font(font_path, 45, bold=True), _font(font_path, 42, bold=True), _font(font_path, 34)
     for candidate_index, (x0, x1) in enumerate(x_boxes):
         title = f"Candidate {context.reference_labels[candidate_index]}"; box = draw.textbbox((0, 0), title, font=title_font); draw.text((x0 + (x1 - x0 - (box[2] - box[0])) / 2, 65), title, fill=INK, font=title_font)
         native_box=(x0,y_boxes[0][0],x1,y_boxes[0][1]); analysis_box=(x0,y_boxes[1][0],x1,y_boxes[1][1])
         reference_image, reference_analysis = _reference_views(context, candidate_index, font_path)
-        canvas.paste(_fit_into_box(reference_image, native_box, background=(188, 174, 42)), (x0,y_boxes[0][0]))
-        canvas.paste(_fit_into_box(reference_analysis, analysis_box, background=(12,26,32)), (x0,y_boxes[1][0]))
+        canvas.paste(_fit_into_box(reference_image, native_box, background=(188, 174, 42), edge_pad=True), (x0,y_boxes[0][0]))
+        canvas.paste(_fit_into_box(reference_analysis, analysis_box, background=(12,26,32), edge_pad=True), (x0,y_boxes[1][0]))
         _draw_tile_label(draw,x0,y_boxes[0][0],chr(97+candidate_index),font_path); _draw_tile_label(draw,x0,y_boxes[1][0],chr(101+candidate_index),font_path)
         caption="Binary support + skeleton"; cb=draw.textbbox((0,0),caption,font=caption_font); draw.text((x0+(x1-x0-(cb[2]-cb[0]))/2,2045),caption,fill=INK,font=caption_font)
     for text, y in (("Target-referenced image (200 µm)", 500), ("Target-referenced analysis (200 µm)", 1450)):
