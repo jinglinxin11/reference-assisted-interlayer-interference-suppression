@@ -1,0 +1,37 @@
+{
+  "random_seed": 20260808,
+  "before_file": "248T.tif",
+  "after_file": "976-T.tif",
+  "reference_docx": "Manuscript-revised(1).docx",
+  "common_grid": "after_image_grid",
+  "registration": {
+    "rotation_min_deg": -2.0,
+    "rotation_max_deg": 2.0,
+    "rotation_step_deg": 0.1,
+    "upsample_factor": 20,
+    "interpolation_order": 1,
+    "resize_anti_aliasing": true
+  },
+  "profiles": {
+    "profile_half_length_px": 18,
+    "parallel_profile_count": 11,
+    "parallel_spacing_px": 1.0,
+    "auto_center_search_px": 6,
+    "gaussian_sigma_px": 0.75,
+    "background_fraction_each_end": 0.18,
+    "center_search_fraction": 0.40,
+    "minimum_peak_to_noise": 3.0,
+    "bootstrap_iterations": 10000
+  },
+  "smoothing_sensitivity_sigma_px": [0.0, 0.5, 0.75, 1.0],
+  "threshold_sensitivity_sigma_multiplier": [2.7, 3.0, 3.3],
+  "roi_definition": "Six anatomically distributed, approximately straight line segments were quality-screened within fixed anatomical search bands using the minimum peak-to-noise across both conditions, without using the before-after effect size. Final candidate coordinates were frozen in this config. Each center is then refined only along the stated normal by at most +/-6 px using the after-image Lab a* response; the same registered coordinates are applied to both conditions.",
+  "rois": [
+    {"ROI_ID": "R01", "label": "left outer upper arm", "center_x": 31, "center_y": 238, "tangent_angle_deg": 90},
+    {"ROI_ID": "R02", "label": "right outer upper arm", "center_x": 258, "center_y": 225, "tangent_angle_deg": 90},
+    {"ROI_ID": "R03", "label": "left lower forearm boundary", "center_x": 115, "center_y": 325, "tangent_angle_deg": 0},
+    {"ROI_ID": "R04", "label": "right lower forearm boundary", "center_x": 175, "center_y": 310, "tangent_angle_deg": 2},
+    {"ROI_ID": "R05", "label": "left lapel diagonal", "center_x": 92, "center_y": 190, "tangent_angle_deg": 62},
+    {"ROI_ID": "R06", "label": "right lapel diagonal", "center_x": 185, "center_y": 200, "tangent_angle_deg": 125}
+  ]
+}

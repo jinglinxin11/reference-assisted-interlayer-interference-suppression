@@ -154,6 +154,23 @@ one-command reproduction entry point—not by cached raster outputs. Do not add
 generated PNG files to a commit unless a clean end-to-end run has first passed
 and the repository's publication policy is deliberately changed.
 
+## Supplementary Figure S14: UV-versus-NIR spatial confinement
+
+Figure S14 is reproduced from a separate, checksum-protected archive of its
+registered image pair, six frozen ROI coordinates, ROI-level metrics and 132
+profile traces. From the repository root, run:
+
+```powershell
+python paper_figures/figure_s14/plot_figure_s14.py
+python paper_figures/figure_s14/export_figure_s14_panels.py
+```
+
+The first command exports the submitted eight-panel composite. The second
+exports the eight logical panels separately. Exact dependency setup, source
+files, output definitions, numerical checks and the boundary between plotting
+reproduction and upstream analysis are documented in
+[`figure_s14/README.md`](figure_s14/README.md).
+
 ## Rendering contract
 
 - Python/matplotlib is the exclusive plotting backend.
@@ -186,4 +203,6 @@ paper_figures/
   diagnostics.py                         data-derived images and numerical source data
   generate_figure_h_panels.py            Figure H renderer
   scripts/export_supplementary_figures.py supplementary renderer
+  figure_s14/plot_figure_s14.py           complete Figure S14 renderer
+  figure_s14/export_figure_s14_panels.py  standalone Figure S14 panel renderer
 ```

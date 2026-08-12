@@ -96,3 +96,22 @@ scale-conversion audit are documented in
 [`paper_figures/README.md`](paper_figures/README.md). The manuscript may cite
 the repository root and this reviewer entry point instead of enumerating local
 Windows paths or every generated filename.
+
+## Supplementary Figure S14 reproduction
+
+The UV-versus-NIR spatial-confinement analysis has two additional plotting
+entry points under
+[`paper_figures/figure_s14/`](paper_figures/figure_s14/README.md). The first
+regenerates the complete eight-panel Figure S14; the second exports its eight
+logical panels separately:
+
+```powershell
+python paper_figures/figure_s14/plot_figure_s14.py
+python paper_figures/figure_s14/export_figure_s14_panels.py
+```
+
+The directory includes pinned plotting dependencies, 138 checksum-protected
+figure-level source-data files and detailed reviewer instructions. These two
+commands reproduce the plotting stage from archived registered images and
+ROI-level outputs; they do not rerun the upstream registration or ROI
+measurement workflow.

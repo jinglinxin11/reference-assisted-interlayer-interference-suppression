@@ -1,0 +1,7 @@
+﻿ROI_ID,label,center_x,center_y,tangent_angle_deg,initial_center_x,initial_center_y,center_refinement_along_normal_px,normal_angle_deg,after_a_star_center_response
+R01,left outer upper arm,26.0,238.0,90,31.0,238.0,5.0,180.0,8.50521348814668
+R02,right outer upper arm,254.75,225.0,90,258.0,225.0,3.25,180.0,7.4854591379097535
+R03,left lower forearm boundary,115.0,331.0,0,115.0,325.0,6.0,90.0,4.790970109638665
+R04,right lower forearm boundary,174.79060301978498,315.99634496211456,2,175.0,310.0,6.0,92.0,-0.5185681024036244
+R05,left lapel diagonal,88.24747273034956,191.99525414184004,62,92.0,190.0,4.25,152.0,6.080879510070506
+R06,right lapel diagonal,189.91491226573396,203.44145861810628,125,185.0,200.0,-6.0,215.0,1.4765190864387936
