@@ -30,12 +30,12 @@ from .scale_calibration import PhysicalScaleEstimate, estimate_pixels_per_um
 
 
 DEFAULT_TARGET_SCALE_BAR_UM = 200.0
-DEFAULT_AUXILIARY_SCALE_BAR_UM = DEFAULT_TARGET_SCALE_BAR_UM
+DEFAULT_AUXILIARY_SCALE_BAR_UM = 500.0
 LOW_MARGIN = 0.025
 TARGET_REFERENCED_SEARCH = UnifiedSearchConfig(
     physical_residual_scale_range=(0.60, 1.80),
     physical_residual_scale_count=7,
-    include_generic_scale_fallback=False,
+    include_generic_scale_fallback=True,
     fine_scale_half_width=0.12,
     physical_prior_weight=0.08,
 )
@@ -208,6 +208,8 @@ def _pair_row(
         "forward_similarity": round(match.forward_similarity, 8),
         "reverse_similarity": round(match.reverse_similarity, 8),
         "orientation": round(match.orientation, 8),
+        "topology_coverage": round(match.topology.coverage_score, 8),
+        "topology_directional_agreement": round(match.topology.directional_score, 8),
         "missing_stroke_penalty": round(match.topology.missing_stroke_penalty, 8),
         "unexplained_target_evidence_penalty": round(match.topology.unexplained_target_evidence_penalty, 8),
         "endpoint_coverage": round(match.topology.endpoint_coverage, 8),
@@ -359,7 +361,7 @@ def run_pipeline(
             "physical_scale_prior": best.physical_scale_prior,
             "physical_scale_score": best.physical_scale_score,
             "physical_scale_available": best.physical_scale_available,
-            "physical_scale_mode": "target_200um_constrained",
+            "physical_scale_mode": "target_200um_reference_500um_calibrated",
             "target_scale_bar_um": target_scale_bar_um,
             "auxiliary_scale_bar_um": auxiliary_scale_bar_um,
             "physical_analysis_scale_residual": (
@@ -449,7 +451,7 @@ def minimal_results_payload(run: PipelineRun) -> dict[str, object]:
             }
         )
     return {
-        "mode": "automatic_independent_target_200um_constrained",
+        "mode": "automatic_independent_target_200um_reference_500um_calibrated",
         "binary_rule": "target_foreground_and_registered_auxiliary_corridor",
         "results": results,
     }

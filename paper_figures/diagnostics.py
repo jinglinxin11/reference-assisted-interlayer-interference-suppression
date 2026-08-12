@@ -32,6 +32,7 @@ from microscopy_matching.registration import (
 DPI = 600
 PANEL_SIZE = (946, 820)
 CORRIDOR_RADIUS = 12
+TARGET_DISPLAY_SCALE_BAR_UM = 200.0
 TRANSLATION_OFFSETS = np.linspace(-24.0, 24.0, 41)
 RADIUS_VALUES = np.arange(2, 31, dtype=int)
 SEARCH_BOUND_VALUES = np.asarray((1.60, 1.75, 1.90), dtype=np.float64)
@@ -385,6 +386,110 @@ def native_reference_rgb(context: PaperDiagnostics, candidate_index: int) -> np.
     return cv2.cvtColor(context.run.reference_images[candidate_index], cv2.COLOR_BGR2RGB)
 
 
+def _analysis_pixels_per_um(
+    image: np.ndarray,
+    structure: Structure,
+    pixels_per_um: float | None,
+) -> float:
+    if pixels_per_um is None or pixels_per_um <= 0.0:
+        raise RuntimeError("A successful scale-bar calibration is required for manuscript display.")
+    resize_x = structure.image.shape[1] / float(image.shape[1])
+    resize_y = structure.image.shape[0] / float(image.shape[0])
+    if not np.isclose(resize_x, resize_y, rtol=0.02, atol=1e-6):
+        raise RuntimeError("Analysis resize is not isotropic; physical display would be ambiguous.")
+    return float(pixels_per_um) * float((resize_x + resize_y) * 0.5)
+
+
+def target_analysis_pixels_per_um(
+    context: PaperDiagnostics,
+    target_index: int = 0,
+) -> float:
+    """Return the target-referenced analysis sampling used by manuscript images."""
+
+    return _analysis_pixels_per_um(
+        context.run.target_images[target_index],
+        context.run.target_structures[target_index],
+        context.run.target_calibrations[target_index].pixels_per_um,
+    )
+
+
+def _remove_detected_scale_annotation(
+    image_rgb: np.ndarray,
+    native_shape: tuple[int, int],
+    bbox_xyxy: tuple[int, int, int, int] | None,
+) -> np.ndarray:
+    """Remove only the detected acquisition annotation before relabelling the view."""
+
+    cleaned = np.asarray(image_rgb, dtype=np.uint8).copy()
+    if bbox_xyxy is None:
+        raise RuntimeError("The native reference scale annotation was not localized.")
+    native_height, native_width = native_shape
+    x0, y0, x1, y1 = bbox_xyxy
+    scale_x = cleaned.shape[1] / float(native_width)
+    scale_y = cleaned.shape[0] / float(native_height)
+    x0 = max(0, int(np.floor(x0 * scale_x)) - 4)
+    y0 = max(0, int(np.floor(y0 * scale_y)) - 4)
+    x1 = min(cleaned.shape[1], int(np.ceil(x1 * scale_x)) + 4)
+    y1 = min(cleaned.shape[0], int(np.ceil(y1 * scale_y)) + 4)
+    if x1 <= x0 or y1 <= y0:
+        raise RuntimeError("Detected scale annotation maps outside the analysis image.")
+
+    ring = 10
+    rx0, ry0 = max(0, x0 - ring), max(0, y0 - ring)
+    rx1, ry1 = min(cleaned.shape[1], x1 + ring), min(cleaned.shape[0], y1 + ring)
+    surround = cleaned[ry0:ry1, rx0:rx1].reshape(-1, 3)
+    fill = np.asarray(np.median(surround, axis=0), dtype=np.uint8)
+    cleaned[y0:y1, x0:x1] = fill
+    return cleaned
+
+
+def target_referenced_reference_rgb(
+    context: PaperDiagnostics,
+    candidate_index: int,
+    *,
+    representation: str = "image",
+    target_index: int = 0,
+) -> np.ndarray:
+    """Resample one native-500-um reference to target-referenced analysis sampling.
+
+    The full reference field is retained.  Only the acquisition scale annotation
+    is removed before the image is resampled; a 200-um manuscript annotation is
+    added later by the renderer.  No content-dependent crop or zoom is applied.
+    """
+
+    structure = context.run.reference_structures[candidate_index]
+    calibration = context.run.reference_calibrations[candidate_index]
+    reference_ppu = _analysis_pixels_per_um(
+        context.run.reference_images[candidate_index],
+        structure,
+        calibration.pixels_per_um,
+    )
+    target_ppu = target_analysis_pixels_per_um(context, target_index)
+    scale = target_ppu / reference_ppu
+    if not np.isfinite(scale) or scale <= 0.0:
+        raise RuntimeError("Invalid target/reference physical resampling factor.")
+
+    if representation == "image":
+        source = cv2.cvtColor(structure.image, cv2.COLOR_BGR2RGB)
+        source = _remove_detected_scale_annotation(
+            source,
+            context.run.reference_images[candidate_index].shape[:2],
+            calibration.bar_bbox_xyxy,
+        )
+        interpolation = cv2.INTER_LANCZOS4
+    elif representation == "analysis":
+        source = np.full((*structure.mask.shape, 3), (12, 26, 32), dtype=np.uint8)
+        source[structure.mask] = (207, 221, 224)
+        source[structure.skeleton] = (85, 190, 210)
+        interpolation = cv2.INTER_NEAREST
+    else:
+        raise ValueError("representation must be 'image' or 'analysis'")
+
+    output_width = max(1, int(round(source.shape[1] * scale)))
+    output_height = max(1, int(round(source.shape[0] * scale)))
+    return cv2.resize(source, (output_width, output_height), interpolation=interpolation)
+
+
 def fit_panel(
     image_rgb: np.ndarray,
     *,
@@ -508,6 +613,43 @@ def write_diagnostic_tables(context: PaperDiagnostics, outdir: Path) -> list[Pat
             writer.writerow((float(bound), *scores.tolist()))
 
     manifest = {
+        "physical_scale_convention": {
+            "target_native_scale_bar_um": TARGET_DISPLAY_SCALE_BAR_UM,
+            "reference_native_scale_bar_um": 500.0,
+            "manuscript_display_scale_bar_um": TARGET_DISPLAY_SCALE_BAR_UM,
+            "reference_display_transform": (
+                "full-field isotropic resampling from the native 500-um reference "
+                "calibration to target_01 analysis pixels per micrometre; the detected "
+                "native annotation is removed, candidates are placed on one common "
+                "physical canvas with background-only padding, and a 200-um display "
+                "annotation is added"
+            ),
+            "target_analysis_pixels_per_um": target_analysis_pixels_per_um(context),
+            "target_calibrations": [
+                {
+                    "file": path.name,
+                    "pixels_per_um": calibration.pixels_per_um,
+                    "confidence": calibration.confidence,
+                    "source": calibration.source,
+                }
+                for path, calibration in zip(
+                    context.run.target_paths,
+                    context.run.target_calibrations,
+                )
+            ],
+            "reference_calibrations": [
+                {
+                    "file": path.name,
+                    "pixels_per_um": calibration.pixels_per_um,
+                    "confidence": calibration.confidence,
+                    "source": calibration.source,
+                }
+                for path, calibration in zip(
+                    context.run.reference_paths,
+                    context.run.reference_calibrations,
+                )
+            ],
+        },
         "input_files": {
             "targets": [
                 {"name": path.name, "sha256": _sha256(path)}

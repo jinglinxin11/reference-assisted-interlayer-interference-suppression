@@ -22,11 +22,11 @@ from paper_figures.diagnostics import (  # noqa: E402
     CORRIDOR_RADIUS,
     DPI,
     PANEL_SIZE,
+    TARGET_DISPLAY_SCALE_BAR_UM,
     PaperDiagnostics,
     build_paper_diagnostics,
     configure_arial,
     corridor_overlay_rgb,
-    native_reference_rgb,
     pair_row_for,
     presentation_rgb,
     registration_diagnostic_rgb,
@@ -34,6 +34,8 @@ from paper_figures.diagnostics import (  # noqa: E402
     save_exact_rgb,
     skeleton_rgb,
     strict_mask_rgb,
+    target_analysis_pixels_per_um,
+    target_referenced_reference_rgb,
     validate_png,
 )
 
@@ -295,14 +297,14 @@ def transform_panel(ax: plt.Axes, context: PaperDiagnostics, *, compact: bool = 
         label = context.reference_labels[candidate]
         # The selected T/U/Z transforms are close.  Deterministic upper-right
         # offsets keep every label readable while preserving its bubble link.
-        label_offsets = {"S": (7, 7), "Z": (8, 15), "U": (18, 9), "T": (28, 3)}
+        label_offsets = {"S": (7, 7), "Z": (8, 15), "U": (13, 9), "T": (-9, 6)}
         offset_x, offset_y = label_offsets.get(label, (8, 8))
         ax.annotate(
             label,
             (scale, angle),
             xytext=(offset_x, offset_y),
             textcoords="offset points",
-            ha="left",
+            ha="right" if offset_x < 0 else "left",
             va="bottom",
             fontsize=5.6 if compact else 6.7,
             color=INK,
@@ -318,15 +320,15 @@ def transform_panel(ax: plt.Axes, context: PaperDiagnostics, *, compact: bool = 
     ax.grid(color=GRID, lw=0.6)
     legend_label = "50 px translation" if compact else "Translation magnitude = 50 px"
     ax.scatter([], [], s=90.0, facecolor="white", edgecolor=MUTED, linewidth=0.8, label=legend_label)
-    ax.legend(loc="lower left", handletextpad=0.6, fontsize=5.2 if compact else 6.0)
+    ax.legend(loc="upper left", handletextpad=0.6, fontsize=5.2 if compact else 6.0)
 
 
 def build_figure2(context: PaperDiagnostics) -> plt.Figure:
     fig = plt.figure(figsize=(COMPOSITE_SIZES[1][0] / DPI, COMPOSITE_SIZES[1][1] / DPI), dpi=DPI)
-    ax_a = fig.add_axes((0.070, 0.220, 0.255, 0.660))
-    cax = fig.add_axes((0.335, 0.220, 0.014, 0.660))
-    ax_b = fig.add_axes((0.405, 0.200, 0.255, 0.690))
-    ax_c = fig.add_axes((0.745, 0.200, 0.235, 0.690))
+    ax_a = fig.add_axes((0.060, 0.220, 0.235, 0.660))
+    cax = fig.add_axes((0.305, 0.220, 0.012, 0.660))
+    ax_b = fig.add_axes((0.430, 0.200, 0.245, 0.690))
+    ax_c = fig.add_axes((0.765, 0.200, 0.210, 0.690))
     pairwise_matrix_panel(ax_a, cax, context, compact=True)
     pairwise_ranking_panel(ax_b, context, compact=True)
     transform_panel(ax_c, context, compact=True)
@@ -437,12 +439,104 @@ def save_figure3_individuals(context: PaperDiagnostics, panel_dir: Path) -> list
     return paths
 
 
-def _reference_analysis_rgb(context: PaperDiagnostics, candidate_index: int) -> np.ndarray:
-    structure = context.run.reference_structures[candidate_index]
-    image = np.full((*structure.mask.shape, 3), (12, 26, 32), dtype=np.uint8)
-    image[structure.mask] = (207, 221, 224)
-    image[structure.skeleton] = (85, 190, 210)
-    return image
+def _annotate_target_scale_bar(
+    image_rgb: np.ndarray,
+    context: PaperDiagnostics,
+    font_path: Path,
+) -> np.ndarray:
+    """Add a truthful 200-um bar after target-referenced physical resampling."""
+
+    image = Image.fromarray(np.asarray(image_rgb, dtype=np.uint8), mode="RGB")
+    draw = ImageDraw.Draw(image)
+    bar_pixels = int(round(
+        TARGET_DISPLAY_SCALE_BAR_UM * target_analysis_pixels_per_um(context)
+    ))
+    if bar_pixels <= 0 or bar_pixels >= image.width:
+        raise RuntimeError("The target-referenced 200-um scale bar does not fit the image.")
+    font = _font(font_path, max(16, int(round(image.height * 0.025))))
+    text = "200 µm"
+    text_box = draw.textbbox((0, 0), text, font=font)
+    text_width = text_box[2] - text_box[0]
+    text_height = text_box[3] - text_box[1]
+    margin = max(12, int(round(min(image.width, image.height) * 0.018)))
+    inset = max(7, margin // 2)
+    panel_width = max(bar_pixels, text_width) + 2 * inset
+    panel_height = text_height + 3 * inset + max(4, image.height // 250)
+    x0 = image.width - margin - panel_width
+    y0 = image.height - margin - panel_height
+    if x0 < 0 or y0 < 0:
+        raise RuntimeError("The 200-um annotation panel does not fit the resampled reference.")
+    draw.rectangle(
+        (x0, y0, x0 + panel_width, y0 + panel_height),
+        fill=(255, 255, 255),
+        outline=(19, 43, 53),
+        width=max(1, image.height // 500),
+    )
+    bar_x0 = x0 + (panel_width - bar_pixels) // 2
+    bar_y = y0 + inset
+    draw.line(
+        (bar_x0, bar_y, bar_x0 + bar_pixels, bar_y),
+        fill=(19, 43, 53),
+        width=max(4, image.height // 180),
+    )
+    draw.text(
+        (x0 + (panel_width - text_width) / 2, bar_y + inset),
+        text,
+        fill=(19, 43, 53),
+        font=font,
+    )
+    return np.asarray(image, dtype=np.uint8)
+
+
+def _reference_views(
+    context: PaperDiagnostics,
+    candidate_index: int,
+    font_path: Path,
+) -> tuple[np.ndarray, np.ndarray]:
+    def common_canvas(representation: str) -> np.ndarray:
+        views = [
+            target_referenced_reference_rgb(
+                context,
+                index,
+                representation=representation,
+            )
+            for index in range(4)
+        ]
+        height = max(view.shape[0] for view in views)
+        width = max(view.shape[1] for view in views)
+        selected = views[candidate_index]
+        if representation == "analysis":
+            background = np.asarray((12, 26, 32), dtype=np.uint8)
+        else:
+            border = np.concatenate(
+                (
+                    selected[0],
+                    selected[-1],
+                    selected[:, 0],
+                    selected[:, -1],
+                ),
+                axis=0,
+            )
+            background = np.asarray(np.median(border, axis=0), dtype=np.uint8)
+        canvas = np.empty((height, width, 3), dtype=np.uint8)
+        canvas[:] = background
+        x0 = (width - selected.shape[1]) // 2
+        y0 = (height - selected.shape[0]) // 2
+        canvas[y0 : y0 + selected.shape[0], x0 : x0 + selected.shape[1]] = selected
+        return canvas
+
+    return (
+        _annotate_target_scale_bar(
+            common_canvas("image"),
+            context,
+            font_path,
+        ),
+        _annotate_target_scale_bar(
+            common_canvas("analysis"),
+            context,
+            font_path,
+        ),
+    )
 
 
 def build_figure4(context: PaperDiagnostics, font_path: Path) -> Image.Image:
@@ -453,23 +547,24 @@ def build_figure4(context: PaperDiagnostics, font_path: Path) -> Image.Image:
     for candidate_index, (x0, x1) in enumerate(x_boxes):
         title = f"Candidate {context.reference_labels[candidate_index]}"; box = draw.textbbox((0, 0), title, font=title_font); draw.text((x0 + (x1 - x0 - (box[2] - box[0])) / 2, 65), title, fill=INK, font=title_font)
         native_box=(x0,y_boxes[0][0],x1,y_boxes[0][1]); analysis_box=(x0,y_boxes[1][0],x1,y_boxes[1][1])
-        canvas.paste(_fit_into_box(native_reference_rgb(context, candidate_index), native_box, background=(188, 174, 42)), (x0,y_boxes[0][0]))
-        canvas.paste(_fit_into_box(_reference_analysis_rgb(context, candidate_index), analysis_box, background=(12,26,32)), (x0,y_boxes[1][0]))
+        reference_image, reference_analysis = _reference_views(context, candidate_index, font_path)
+        canvas.paste(_fit_into_box(reference_image, native_box, background=(188, 174, 42)), (x0,y_boxes[0][0]))
+        canvas.paste(_fit_into_box(reference_analysis, analysis_box, background=(12,26,32)), (x0,y_boxes[1][0]))
         _draw_tile_label(draw,x0,y_boxes[0][0],chr(97+candidate_index),font_path); _draw_tile_label(draw,x0,y_boxes[1][0],chr(101+candidate_index),font_path)
         caption="Binary support + skeleton"; cb=draw.textbbox((0,0),caption,font=caption_font); draw.text((x0+(x1-x0-(cb[2]-cb[0]))/2,2045),caption,fill=INK,font=caption_font)
-    for text, y in (("Native reference image", 500), ("Analysis representation", 1450)):
+    for text, y in (("Target-referenced image (200 µm)", 500), ("Target-referenced analysis (200 µm)", 1450)):
         box=draw.textbbox((0,0),text,font=label_font); img=Image.new("RGBA",(box[2]-box[0]+10,box[3]-box[1]+10),(255,255,255,0)); ImageDraw.Draw(img).text((5,5),text,fill=INK,font=label_font); rot=img.transpose(Image.Transpose.ROTATE_90); canvas.paste(rot,(70,y),rot)
-    note="Native reference display (500 µm annotations); not the 200 µm target-referenced field used in Supplementary Fig. 1."
+    note="Native input calibration: 500 µm. Display: target-referenced 200 µm; full field retained, with no content-dependent crop or zoom."
     nb=draw.textbbox((0,0),note,font=caption_font); draw.text(((4322-(nb[2]-nb[0]))/2,2155),note,fill=MUTED,font=caption_font)
     return canvas
 
 
-def save_figure4_individuals(context: PaperDiagnostics, panel_dir: Path) -> list[Path]:
+def save_figure4_individuals(context: PaperDiagnostics, panel_dir: Path, font_path: Path) -> list[Path]:
     saved=[]
     for i,label in enumerate(context.reference_labels):
-        p=panel_dir/f"suppfig4_{chr(97+i)}_candidate_{label}_native.png"; _save_rgb_panel(native_reference_rgb(context,i),p); saved.append(p)
+        p=panel_dir/f"suppfig4_{chr(97+i)}_candidate_{label}_target_200um.png"; _save_rgb_panel(_reference_views(context,i,font_path)[0],p); saved.append(p)
     for i,label in enumerate(context.reference_labels):
-        p=panel_dir/f"suppfig4_{chr(101+i)}_candidate_{label}_analysis.png"; _save_rgb_panel(_reference_analysis_rgb(context,i),p); saved.append(p)
+        p=panel_dir/f"suppfig4_{chr(101+i)}_candidate_{label}_analysis_target_200um.png"; _save_rgb_panel(_reference_views(context,i,font_path)[1],p); saved.append(p)
     return saved
 
 
@@ -612,7 +707,7 @@ def generate_supplementary(context: PaperDiagnostics, outdir: Path, *, font_path
     outdir.mkdir(parents=True,exist_ok=True); panel_dir=outdir/"individual_panels"; panel_dir.mkdir(parents=True,exist_ok=True)
     composites=[outdir/name for name in COMPOSITE_NAMES]
     _save_composite_image(build_figure1(context,font_path),composites[0],COMPOSITE_SIZES[0]); _save_figure(build_figure2(context),composites[1],COMPOSITE_SIZES[1]); _save_figure(build_figure3(context),composites[2],COMPOSITE_SIZES[2]); _save_composite_image(build_figure4(context,font_path),composites[3],COMPOSITE_SIZES[3]); _save_figure(build_figure5(context),composites[4],COMPOSITE_SIZES[4])
-    individuals=[]; individuals.extend(save_figure1_individuals(context,panel_dir)); individuals.extend(save_figure2_individuals(context,panel_dir)); individuals.extend(save_figure3_individuals(context,panel_dir)); individuals.extend(save_figure4_individuals(context,panel_dir)); individuals.extend(save_figure5_individuals(context,panel_dir))
+    individuals=[]; individuals.extend(save_figure1_individuals(context,panel_dir)); individuals.extend(save_figure2_individuals(context,panel_dir)); individuals.extend(save_figure3_individuals(context,panel_dir)); individuals.extend(save_figure4_individuals(context,panel_dir,font_path)); individuals.extend(save_figure5_individuals(context,panel_dir))
     if len(individuals)!=42: raise RuntimeError(f"Expected 42 individual panels, generated {len(individuals)}")
     for path in composites: validate_png(path,expected_size=COMPOSITE_SIZES[composites.index(path)])
     for path in individuals: validate_png(path)

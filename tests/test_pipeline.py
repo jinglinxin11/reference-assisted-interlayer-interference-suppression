@@ -14,8 +14,8 @@ from microscopy_matching.pipeline import (
 
 def test_target_referenced_search_requires_the_physical_scale_window() -> None:
     assert DEFAULT_TARGET_SCALE_BAR_UM == 200.0
-    assert DEFAULT_AUXILIARY_SCALE_BAR_UM == DEFAULT_TARGET_SCALE_BAR_UM
-    assert not TARGET_REFERENCED_SEARCH.include_generic_scale_fallback
+    assert DEFAULT_AUXILIARY_SCALE_BAR_UM == 500.0
+    assert TARGET_REFERENCED_SEARCH.include_generic_scale_fallback
     assert TARGET_REFERENCED_SEARCH.physical_residual_scale_range == (0.60, 1.80)
     assert TARGET_REFERENCED_SEARCH.physical_residual_scale_count == 7
     assert TARGET_REFERENCED_SEARCH.fine_scale_half_width == 0.12
@@ -34,9 +34,9 @@ def test_minimal_results_payload_contains_only_final_result_references() -> None
         "analysis_angle_deg": 0.0,
         "analysis_dx": 1.0,
         "analysis_dy": 2.0,
-        "physical_scale_mode": "target_200um_constrained",
+        "physical_scale_mode": "target_200um_reference_500um_calibrated",
         "target_scale_bar_um": 200.0,
-        "auxiliary_scale_bar_um": 200.0,
+        "auxiliary_scale_bar_um": 500.0,
         "physical_scale_prior": 2.3,
         "physical_analysis_scale_residual": 1.1,
         "physical_scale_score": 0.9,
@@ -59,7 +59,7 @@ def test_minimal_results_payload_contains_only_final_result_references() -> None
         PipelineRun(Path("."), Path("."), (), (row,), (selection,))
     )
 
-    assert payload["mode"] == "automatic_independent_target_200um_constrained"
+    assert payload["mode"] == "automatic_independent_target_200um_reference_500um_calibrated"
     assert payload["binary_rule"] == "target_foreground_and_registered_auxiliary_corridor"
     assert payload["results"] == [
         {
@@ -71,9 +71,9 @@ def test_minimal_results_payload_contains_only_final_result_references() -> None
             "decision_status": "flagged_topology",
             "analysis_transform": {"scale": 1.0, "angle_deg": 0.0, "dx": 1.0, "dy": 2.0},
             "physical_scale": {
-                "mode": "target_200um_constrained",
+                "mode": "target_200um_reference_500um_calibrated",
                 "target_scale_bar_um": 200.0,
-                "auxiliary_scale_bar_um": 200.0,
+                "auxiliary_scale_bar_um": 500.0,
                 "analysis_prior": 2.3,
                 "analysis_residual": 1.1,
                 "score": 0.9,

@@ -17,6 +17,8 @@ REQUIREMENTS = REPO / "requirements.txt"
 GENERATED = PAPER / "generated"
 DEFAULT_TARGETS = REPO / "data" / "input" / "target_images"
 DEFAULT_REFERENCES = REPO / "data" / "input" / "reference_images"
+DEFAULT_TARGET_SCALE_BAR_UM = 200.0
+DEFAULT_REFERENCE_SCALE_BAR_UM = 500.0
 
 
 def environment_python(environment: Path) -> Path:
@@ -44,6 +46,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--targets", type=Path, default=DEFAULT_TARGETS)
     parser.add_argument("--references", type=Path, default=DEFAULT_REFERENCES)
+    parser.add_argument("--target-scale-bar-um", type=float, default=DEFAULT_TARGET_SCALE_BAR_UM)
+    parser.add_argument("--reference-scale-bar-um", type=float, default=DEFAULT_REFERENCE_SCALE_BAR_UM)
     return parser.parse_args()
 
 
@@ -84,6 +88,10 @@ def main() -> None:
                 str(references),
                 "--outdir",
                 str(GENERATED),
+                "--target-scale-bar-um",
+                str(args.target_scale_bar_um),
+                "--reference-scale-bar-um",
+                str(args.reference_scale_bar_um),
             ],
             cwd=REPO,
             check=True,
@@ -92,4 +100,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

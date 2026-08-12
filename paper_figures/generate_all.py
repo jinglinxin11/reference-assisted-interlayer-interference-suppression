@@ -5,7 +5,12 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from microscopy_matching.pipeline import run_pipeline, write_minimal_output
+from microscopy_matching.pipeline import (
+    DEFAULT_AUXILIARY_SCALE_BAR_UM,
+    DEFAULT_TARGET_SCALE_BAR_UM,
+    run_pipeline,
+    write_minimal_output,
+)
 from paper_figures.diagnostics import (
     build_paper_diagnostics,
     configure_arial,
@@ -31,6 +36,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--targets", type=Path, default=DEFAULT_TARGETS)
     parser.add_argument("--references", type=Path, default=DEFAULT_REFERENCES)
     parser.add_argument("--outdir", type=Path, default=DEFAULT_OUTDIR)
+    parser.add_argument("--target-scale-bar-um", type=float, default=DEFAULT_TARGET_SCALE_BAR_UM)
+    parser.add_argument("--reference-scale-bar-um", type=float, default=DEFAULT_AUXILIARY_SCALE_BAR_UM)
     return parser.parse_args()
 
 
@@ -45,7 +52,12 @@ def main() -> None:
     print(f"Arial resolved for all manuscript figures: {font_path}")
     print(f"Running matching from targets: {targets}")
     print(f"Running matching from references: {references}")
-    run = run_pipeline(targets, references)
+    run = run_pipeline(
+        targets,
+        references,
+        target_scale_bar_um=args.target_scale_bar_um,
+        auxiliary_scale_bar_um=args.reference_scale_bar_um,
+    )
     context = build_paper_diagnostics(run)
 
     algorithm_dir = outdir / "algorithm_results"

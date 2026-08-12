@@ -73,7 +73,7 @@ artifacts/matching_results/
 ## 6. Matching Rules
 
 1. Extract the dark response, foreground mask, and skeleton from every target and reference image.
-2. Detect the target scale bar and use the explicitly supplied physical length of `200 um` to define the scale constraint.
+2. Detect the target and reference scale-bar graphics and calibrate them with the explicitly supplied physical lengths of `200 µm` and `500 µm`, respectively. The program does not infer these labels by OCR.
 3. Independently search every candidate reference for each target over scale, rotation, and translation.
 4. Form one score from geometric distance, orientation agreement, skeleton coverage, endpoint coverage, and missing-stroke penalties.
 5. Select the highest-scoring candidate independently for every target. File order does not force the selected label, and no one-to-one batch assignment is applied.
@@ -104,7 +104,11 @@ target_04 -> Z
 - Reference filenames provide candidate labels but do not determine a target's selected result.
 - Each input directory must contain exactly four readable JPG or PNG images.
 - Verify the physical meaning of the scale bar when replacing inputs. The program does not infer the scale label through OCR.
+- The committed target images use 200 µm native bars; the committed reference images use 500 µm native bars. These are different acquisition calibrations, not interchangeable display labels.
+- All manuscript microscopy outputs use target-referenced sampling. Native reference views are isotropically resampled after 500 µm calibration, placed on one common physical canvas using background-only padding, and given a truthful 200 µm display bar; the original reference files remain unchanged for audit and no specimen crop or content-dependent zoom is applied.
 - `python paper_figures/run_all.py` is the end-to-end reviewer entry point. It reads the four targets and four references under `data/input/`, reruns all sixteen candidate registrations, and generates eight Figure H panels, five supplementary composites, 42 supplementary panels, and reviewer-readable CSV/JSON source data from that same algorithm run.
+- The exact scale contract can be made explicit at the command line: `python paper_figures/run_all.py --target-scale-bar-um 200 --reference-scale-bar-um 500`.
 - Manuscript figures no longer load frozen composites or hard-coded manuscript scores. Arial is required and the run fails rather than silently substituting another font.
 - Manuscript outputs are RGB 600 dpi PNG files; no ZIP, Word, PDF, SVG, or TIFF is generated.
 - `paper_figures/generated/` is not committed to Git. Reviewers regenerate every result from the committed inputs and current algorithm, preventing stale or manually post-processed PNG files from diverging from the source code.
+- In the Supplementary Information, cite the repository and the single reviewer command instead of listing local machine paths or every output filename. The output inventory and definitions are maintained in `paper_figures/README.md`.

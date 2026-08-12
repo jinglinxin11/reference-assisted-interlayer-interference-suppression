@@ -16,6 +16,13 @@ From the repository root:
 python paper_figures/run_all.py
 ```
 
+For the committed manuscript inputs, the same assumptions can be stated
+explicitly:
+
+```powershell
+python paper_figures/run_all.py --target-scale-bar-um 200 --reference-scale-bar-um 500
+```
+
 The same command is used from Bash, zsh, or a POSIX shell:
 
 ```bash
@@ -38,6 +45,24 @@ python paper_figures/run_all.py `
 Each directory must contain exactly four readable JPG or PNG images. Target
 images are ordered by filename; reference filename stems are used only as
 display labels. Candidate selection is determined by the algorithm scores.
+
+## Physical-scale contract
+
+- Target inputs carry validated native 200 µm scale bars.
+- Reference inputs carry validated native 500 µm scale bars.
+- Both native calibrations are used in the physical scale prior during
+  registration; treating the reference bar as 200 µm is incorrect.
+- Every manuscript microscopy output is expressed at target-referenced
+  sampling. Supplementary Figure 4 therefore removes the detected native
+  reference annotation, isotropically resamples the full reference field from
+  its 500 µm calibration to the representative target analysis sampling, and
+  places every candidate on one common physical canvas using background-only
+  padding before adding a 200 µm display bar. The source pixels under
+  `data/input/` are never overwritten. The conversion uses no specimen crop
+  or content-dependent zoom.
+- `generated/diagnostics/diagnostics.json` records the native assumptions,
+  detected pixels per micrometre, calibration confidence, display sampling,
+  input hashes, and the text definition of this conversion.
 
 ## End-to-end data flow
 
@@ -104,7 +129,7 @@ requested spacing. The supplementary single-panel counts are:
 - Supplementary Figure 1: 20 panels, five data-derived stages for four targets.
 - Supplementary Figure 2: 3 panels, pairwise scores, ranking margins, and transforms.
 - Supplementary Figure 3: 3 panels, translation objective and corridor-radius sensitivity.
-- Supplementary Figure 4: 8 panels, native and analysis views of all four references.
+- Supplementary Figure 4: 8 panels, target-referenced 200 µm image and analysis views of all four references.
 - Supplementary Figure 5: 8 panels, selected/runner-up components and stability diagnostics.
 
 ## Quantitative definitions
@@ -135,17 +160,22 @@ and the repository's publication policy is deliberately changed.
 - Arial and Arial Bold are required. The run stops instead of silently
   substituting another font.
 - Manuscript outputs are RGB PNG with 600 dpi metadata.
-- Standalone microscopy-derived panels are exported at their native array
-  dimensions, pixel for pixel. They are never cropped, stretched, padded,
-  letterboxed, or given a synthetic border. Fixed 946 x 820 canvases are used
-  only for mathematical charts such as the score matrix, contour map, and
+- Target-derived standalone microscopy panels are exported at their analysis
+  or native target dimensions without content-dependent crop, stretch,
+  padding, or letterboxing. Reference-derived Supplementary Figure 4 panels
+  undergo only the documented isotropic physical resampling needed to convert
+  native 500 µm calibration to target-referenced sampling; no specimen crop or
+  content-dependent zoom is applied, and any padding lies outside the retained
+  source field. Fixed 946 x 820 canvases are used only
+  for mathematical charts such as the score matrix, contour map, and
   sensitivity curve.
 - Supplementary composite figures may contain explicitly fitted copies for
   page assembly; the corresponding standalone panels remain the authoritative,
   geometry-preserving evidence images.
 - The workflow does not create PDF, TIFF, SVG, ZIP, or Word files.
-- The target/reference scale-bar physical length is explicitly defined as
-  200 um by the matching pipeline; the program does not infer that text by OCR.
+- The target and reference scale-bar physical lengths are explicitly defined
+  as 200 µm and 500 µm, respectively; the program does not infer either label
+  by OCR. All manuscript display bars are 200 µm after target referencing.
 
 ## Relevant code
 
