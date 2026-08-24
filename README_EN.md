@@ -79,16 +79,7 @@ artifacts/matching_results/
 5. Select the highest-scoring candidate independently for every target. File order does not force the selected label, and no one-to-one batch assignment is applied.
 6. Export the binary result as `target foreground AND registered reference corridor`.
 
-## 7. Decision Status
-
-- `accepted`: the margin and structural checks satisfy automatic acceptance criteria.
-- `flagged_low_margin`: the best and second-best scores are close; manual inspection is recommended.
-- `flagged_topology`: critical-stroke or endpoint-coverage checks triggered a diagnostic flag.
-- Additional flags may report search-boundary or physical-scale audit conditions.
-
-The diagnostic flag does not replace the highest-scoring label. It communicates uncertainty in an auditable form.
-
-## 8. Verified Result for the Included Inputs
+## 7. Verified Result for the Included Inputs
 
 This core package was tested after independent extraction. The highest-scoring labels for the included target images are:
 
@@ -99,7 +90,7 @@ target_03 -> U
 target_04 -> Z
 ```
 
-## 9. Notes
+## 8. Notes
 
 - Reference filenames provide candidate labels but do not determine a target's selected result.
 - Each input directory must contain exactly four readable JPG or PNG images.

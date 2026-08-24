@@ -31,7 +31,6 @@ from .scale_calibration import PhysicalScaleEstimate, estimate_pixels_per_um
 
 DEFAULT_TARGET_SCALE_BAR_UM = 200.0
 DEFAULT_AUXILIARY_SCALE_BAR_UM = 500.0
-LOW_MARGIN = 0.025
 TARGET_REFERENCED_SEARCH = UnifiedSearchConfig(
     physical_residual_scale_range=(0.60, 1.80),
     physical_residual_scale_count=7,
@@ -154,20 +153,6 @@ def _render_target_evidence(
     return rendered
 
 
-def _decision_status(match: UnifiedMatch, margin: float) -> str:
-    if margin < LOW_MARGIN:
-        return "flagged_low_margin"
-    if match.coarse_boundary_hit or match.fine_boundary_hit:
-        return "flagged_boundary_hit"
-    if not match.stable:
-        return "flagged_flat_registration"
-    if match.topology.missing_stroke_penalty > 0.35 or match.topology.endpoint_coverage < 0.65:
-        return "flagged_topology"
-    if not match.physical_scale_available:
-        return "flagged_physical_scale_unavailable"
-    return "automatic_candidate_unvalidated"
-
-
 def _pair_row(
     target_index: int,
     candidate_index: int,
@@ -245,7 +230,6 @@ def _pair_row(
         "scale_plus_1pct_score_drop": round(match.scale_plus_1pct_score_drop, 8),
         "coarse_boundary_hit": match.coarse_boundary_hit,
         "fine_boundary_hit": match.fine_boundary_hit,
-        "status_flags": "|".join(match.status_flags),
     }
 
 
@@ -353,7 +337,6 @@ def run_pipeline(
             "selected_score": round(float(scores[best_index]), 8),
             "runner_up_score": round(float(scores[runner_up]), 8),
             "margin": round(margin, 8),
-            "decision_status": _decision_status(best, margin),
             "analysis_scale": round(best.scale, 8),
             "analysis_angle_deg": round(best.angle_deg, 8),
             "analysis_dx": round(best.dx, 8),
@@ -373,7 +356,6 @@ def run_pipeline(
             "selected_width_um": None if selected_width_um is None else round(selected_width_um, 4),
             "selected_height_um": None if selected_height_um is None else round(selected_height_um, 4),
             "topology_score": round(best.topology_score, 8),
-            "status_flags": "|".join(best.status_flags),
             "rendered_from_target_evidence_only": True,
         }
         summary_rows.append(summary_row)
@@ -429,7 +411,6 @@ def minimal_results_payload(run: PipelineRun) -> dict[str, object]:
                 "selected_score": row["selected_score"],
                 "runner_up_label": row["runner_up_label"],
                 "margin": row["margin"],
-                "decision_status": row["decision_status"],
                 "analysis_transform": {
                     "scale": row["analysis_scale"],
                     "angle_deg": row["analysis_angle_deg"],
@@ -445,7 +426,6 @@ def minimal_results_payload(run: PipelineRun) -> dict[str, object]:
                     "score": row["physical_scale_score"],
                 },
                 "native_bbox_xyxy": row["selected_native_bbox_xyxy"],
-                "status_flags": row["status_flags"],
                 "presentation_file": f"presentation/{stem}.png",
                 "binary_file": f"binary/{stem}.png",
             }

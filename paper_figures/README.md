@@ -117,7 +117,7 @@ paper_figures/generated/
     supplementary_figure_2_pairwise_ranking_transforms.png
     supplementary_figure_3_registration_output_sensitivity.png
     supplementary_figure_4_candidate_references.png
-    supplementary_figure_5_selection_diagnostics.png
+    supplementary_figure_5_candidate_comparison_robustness.png
     individual_panels/                # 42 standalone 600 dpi RGB PNG panels
 ```
 
@@ -130,7 +130,7 @@ requested spacing. The supplementary single-panel counts are:
 - Supplementary Figure 2: 3 panels, pairwise scores, ranking margins, and transforms.
 - Supplementary Figure 3: 3 panels, translation objective and corridor-radius sensitivity.
 - Supplementary Figure 4: 8 panels, target-referenced 200 µm image and analysis views of all four references.
-- Supplementary Figure 5: 8 panels, selected/runner-up components and stability diagnostics.
+- Supplementary Figure 5: 8 panels, selected/runner-up components, robustness and topology metrics.
 
 ## Quantitative definitions
 

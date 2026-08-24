@@ -43,7 +43,6 @@ class UnifiedSearchConfig:
     topology_weight: float = 0.28
     topology_tolerance_px: float = 3.0
     corridor_radius_px: int = 12
-    minimum_stability_drop: float = 0.0005
 
 
 @dataclass(frozen=True)
@@ -74,15 +73,6 @@ class UnifiedMatch:
     coarse_boundary_hit: bool
     fine_boundary_hit: bool
     topology: TopologyScore
-    status_flags: tuple[str, ...]
-
-    @property
-    def stable(self) -> bool:
-        return min(
-            abs(self.dx_plus_1_score_drop),
-            abs(self.dy_plus_1_score_drop),
-            abs(self.scale_plus_1pct_score_drop),
-        ) >= 0.0005
 
 
 @dataclass(frozen=True)
@@ -537,21 +527,6 @@ def refine_candidate(
         np.any(np.isclose(values, best_lower, atol=0.003))
         or np.any(np.isclose(values, best_upper, atol=0.003))
     )
-    flags: list[str] = []
-    if not physical_scale_available:
-        flags.append("physical_scale_unavailable")
-    elif physical_scale_prior is None:
-        flags.append("physical_scale_report_only")
-    if coarse_boundary:
-        flags.append("coarse_boundary_hit")
-    if fine_boundary:
-        flags.append("fine_boundary_hit")
-    if min(abs(dx_drop), abs(dy_drop), abs(scale_drop)) < config.minimum_stability_drop:
-        flags.append("flat_registration")
-    if topology.missing_stroke_penalty > 0.35:
-        flags.append("missing_critical_stroke")
-    if topology.endpoint_coverage < 0.65:
-        flags.append("low_endpoint_coverage")
     return UnifiedMatch(
         score=score,
         geometry_score=geometry.score,
@@ -577,7 +552,6 @@ def refine_candidate(
         coarse_boundary_hit=coarse_boundary,
         fine_boundary_hit=fine_boundary,
         topology=topology,
-        status_flags=tuple(flags),
     )
 
 

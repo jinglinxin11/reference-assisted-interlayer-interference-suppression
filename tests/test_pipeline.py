@@ -29,7 +29,6 @@ def test_minimal_results_payload_contains_only_final_result_references() -> None
         "selected_score": 0.5,
         "runner_up_label": "T",
         "margin": 0.1,
-        "decision_status": "flagged_topology",
         "analysis_scale": 1.0,
         "analysis_angle_deg": 0.0,
         "analysis_dx": 1.0,
@@ -41,7 +40,6 @@ def test_minimal_results_payload_contains_only_final_result_references() -> None
         "physical_analysis_scale_residual": 1.1,
         "physical_scale_score": 0.9,
         "selected_native_bbox_xyxy": "1 2 3 4",
-        "status_flags": "flag",
     }
     selection = SelectedMatch(
         target_index=0,
@@ -68,7 +66,6 @@ def test_minimal_results_payload_contains_only_final_result_references() -> None
             "selected_score": 0.5,
             "runner_up_label": "T",
             "margin": 0.1,
-            "decision_status": "flagged_topology",
             "analysis_transform": {"scale": 1.0, "angle_deg": 0.0, "dx": 1.0, "dy": 2.0},
             "physical_scale": {
                 "mode": "target_200um_reference_500um_calibrated",
@@ -79,7 +76,6 @@ def test_minimal_results_payload_contains_only_final_result_references() -> None
                 "score": 0.9,
             },
             "native_bbox_xyxy": "1 2 3 4",
-            "status_flags": "flag",
             "presentation_file": "presentation/target_01_S.png",
             "binary_file": "binary/target_01_S.png",
         }

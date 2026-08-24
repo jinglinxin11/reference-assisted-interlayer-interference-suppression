@@ -145,7 +145,7 @@ def test_central_auxiliary_support_removes_remote_observed_outlier_without_addin
     assert selected.bbox[0] > 20
 
 
-def test_report_only_calibration_is_not_marked_as_unavailable() -> None:
+def test_report_only_calibration_remains_available() -> None:
     auxiliary = _structure(_u_mask())
     target = _structure(_u_mask())
 
@@ -166,8 +166,7 @@ def test_report_only_calibration_is_not_marked_as_unavailable() -> None:
     )
 
     assert result.physical_scale_available
-    assert "physical_scale_report_only" in result.status_flags
-    assert "physical_scale_unavailable" not in result.status_flags
+    assert result.physical_scale_prior is None
 
 
 def test_translation_score_landscape_uses_selected_transform_and_validates_offsets() -> None:

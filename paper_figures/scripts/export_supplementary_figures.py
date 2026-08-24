@@ -55,7 +55,7 @@ COMPOSITE_NAMES = (
     "supplementary_figure_2_pairwise_ranking_transforms.png",
     "supplementary_figure_3_registration_output_sensitivity.png",
     "supplementary_figure_4_candidate_references.png",
-    "supplementary_figure_5_selection_diagnostics.png",
+    "supplementary_figure_5_candidate_comparison_robustness.png",
 )
 COMPOSITE_SIZES = ((4322, 3236), (4322, 1889), (4322, 1889), (4322, 2220), (4322, 3236))
 
@@ -661,32 +661,10 @@ def topology_panel(ax: plt.Axes, context: PaperDiagnostics, *, compact: bool = F
             zorder=4,
         )
 
-    # Each threshold belongs to only one diagnostic row.  Short row-specific
-    # lines avoid the misleading half-orange/half-blue background blocks.
-    ax.vlines(0.65, -0.30, 0.30, color=S_COLOR, lw=1.4, zorder=4)
-    ax.vlines(0.35, 0.70, 1.30, color=T_COLOR, lw=1.4, zorder=4)
-    ax.text(
-        1.045,
-        -0.49,
-        "E < 0.65: flag" if compact else "Endpoint threshold = 0.65; flag if E < 0.65",
-        ha="right",
-        va="center",
-        color=S_COLOR,
-        fontsize=5.1 if compact else 5.7,
-    )
-    ax.text(
-        1.045,
-        1.49,
-        "M > 0.35: flag" if compact else "Missing threshold = 0.35; flag if M > 0.35",
-        ha="right",
-        va="center",
-        color=T_COLOR,
-        fontsize=5.1 if compact else 5.7,
-    )
     ax.set_yticks(y, labels)
     ax.tick_params(axis="y", pad=6 if compact else 8, labelsize=5.3 if compact else 6.4)
-    ax.set_xlim(0, 1.08)
-    ax.set_ylim(-0.72, 1.72)
+    ax.set_xlim(0, 1.0)
+    ax.set_ylim(-0.6, 1.6)
     ax.set_xlabel("Topology [0, 1]" if compact else "Topology diagnostic [0, 1]")
     ax.set_title(
         "target_01 topology" if compact else "target_01 topology diagnostics",
@@ -713,7 +691,7 @@ def build_figure5(context: PaperDiagnostics) -> plt.Figure:
     component_panel(ax_c,context,1); component_panel(ax_f,context,3); bound_panel(ax_g,context); topology_panel(ax_h,context)
     top_y=outer[0,0].get_position(fig).y1+0.026; middle_y=outer[1,0].get_position(fig).y1+0.026; bottom_y=outer[2,0].get_position(fig).y1+0.026; left_x=outer[0,0].get_position(fig).x0-0.030; middle_x=outer[0,1].get_position(fig).x0-0.030; right_x=outer[0,2:].get_position(fig).x0-0.038
     for letter,x,y in (("a",left_x,top_y),("b",middle_x,top_y),("c",right_x,top_y),("d",left_x,middle_y),("e",middle_x,middle_y),("f",right_x,middle_y),("g",left_x,bottom_y),("h",right_x,bottom_y)): _figure_label(fig,letter,x,y)
-    handles=(Patch(facecolor=TARGET_FOREGROUND,edgecolor="none",label="target foreground"),Line2D([0],[0],color=TARGET_SKELETON,lw=2,label="target skeleton"),Line2D([0],[0],color=REGISTERED_REFERENCE,lw=2,label="registered reference")); fig.legend(handles=handles,loc="upper center",ncols=3,bbox_to_anchor=(0.5,0.992)); fig.text(0.5,0.025,"Diagnostic sensitivity; not independent accuracy validation.",ha="center",color=MUTED,fontsize=6.0)
+    handles=(Patch(facecolor=TARGET_FOREGROUND,edgecolor="none",label="target foreground"),Line2D([0],[0],color=TARGET_SKELETON,lw=2,label="target skeleton"),Line2D([0],[0],color=REGISTERED_REFERENCE,lw=2,label="registered reference")); fig.legend(handles=handles,loc="upper center",ncols=3,bbox_to_anchor=(0.5,0.992)); fig.text(0.5,0.025,"Candidate comparison and fixed-parameter sensitivity; not independent accuracy validation.",ha="center",color=MUTED,fontsize=6.0)
     return fig
 
 
@@ -724,7 +702,7 @@ def save_figure5_individuals(context: PaperDiagnostics, panel_dir: Path) -> list
     for letter,target_index in (("c",1),("f",3)):
         p=panel_dir/f"suppfig5_{letter}_{context.target_labels[target_index]}_component_comparison.png"; fig=plt.figure(figsize=(PANEL_SIZE[0]/DPI,PANEL_SIZE[1]/DPI),dpi=DPI); ax=fig.add_axes((0.18,0.22,0.76,0.67)); component_panel(ax,context,target_index,compact=True); _save_figure(fig,p,PANEL_SIZE); saved.append(p)
     p=panel_dir/"suppfig5_g_target_03_search_bound_sensitivity.png"; fig=plt.figure(figsize=(PANEL_SIZE[0]/DPI,PANEL_SIZE[1]/DPI),dpi=DPI); ax=fig.add_axes((0.20,0.23,0.73,0.66)); bound_panel(ax,context,compact=True); _save_figure(fig,p,PANEL_SIZE); saved.append(p)
-    p=panel_dir/"suppfig5_h_target_01_topology_diagnostics.png"; fig=plt.figure(figsize=(PANEL_SIZE[0]/DPI,PANEL_SIZE[1]/DPI),dpi=DPI); ax=fig.add_axes((0.26,0.23,0.68,0.66)); topology_panel(ax,context,compact=True); _save_figure(fig,p,PANEL_SIZE); saved.append(p)
+    p=panel_dir/"suppfig5_h_target_01_topology_metrics.png"; fig=plt.figure(figsize=(PANEL_SIZE[0]/DPI,PANEL_SIZE[1]/DPI),dpi=DPI); ax=fig.add_axes((0.26,0.23,0.68,0.66)); topology_panel(ax,context,compact=True); _save_figure(fig,p,PANEL_SIZE); saved.append(p)
     return saved
 
 
