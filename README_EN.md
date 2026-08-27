@@ -1,8 +1,8 @@
-# Core Microscopy Pattern-Matching Algorithm
+# Reference-Assisted Interlayer Interference Suppression
 
 ## 1. Purpose
 
-This program independently matches four target microscopy images against four structural reference images. It estimates the scale, rotation, and translation that map each reference structure onto a target, then exports the selected label, a natural-background presentation image, and a matched-only binary evidence image.
+This project implements Reference-Assisted Interlayer Interference Suppression by independently matching four target microscopy images against four structural reference images. It estimates the scale, rotation, and translation that map each reference structure onto a target, then exports the selected label, a natural-background presentation image, and a matched-only binary evidence image.
 
 The current candidate labels are `S`, `T`, `U`, and `Z`. Each target is ranked independently; no one-to-one batch assignment is used.
 

@@ -1,10 +1,10 @@
-# Microscopy Deghosting
+# Reference-Assisted Interlayer Interference Suppression
 
-This project performs label-free, independent matching between target
-microscopy images and structural reference images. It registers each reference
-to a target, retains only target evidence inside the selected corridor, and
-exports both a natural-background presentation image and a non-fabricating
-binary mask.
+This project implements reference-assisted interlayer interference suppression
+for label-free, independent matching between target microscopy images and
+structural reference images. It registers each reference to a target, retains
+only target evidence inside the selected corridor, and exports both a
+natural-background presentation image and a non-fabricating binary mask.
 
 ## Input Layout
 
